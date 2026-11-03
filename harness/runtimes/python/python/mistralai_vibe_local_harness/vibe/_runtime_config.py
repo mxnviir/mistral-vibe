@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass, field, fields, replace
 from pathlib import Path
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from mistralai_vibe_local_harness.protocol import (
     RustHarnessConfig,
@@ -15,6 +15,11 @@ from mistralai_vibe_local_harness.vibe._credentials import (
     StaticProviderCredentials,
 )
 from mistralai_vibe_local_harness.vibe._permissions import PermissionResolver
+
+if TYPE_CHECKING:
+    from mistralai_vibe_local_harness.vibe._subagents._models import (
+        DeclaredCompletionRoute as SubagentCompletionRoute,
+    )
 from mistralai_vibe_local_harness.vibe._sandbox import (
     HelperCrashCount,
     SandboxAdapter,
@@ -361,6 +366,10 @@ class LocalRuntimeAdapterConfig:
     emits_finish_reason: bool = True
     # Extra static headers merged into every provider request.
     extra_headers: dict[str, str] = field(default_factory=dict)
+    # The route the session's generic subagent children complete on; ``None``
+    # keeps them on the session's own model. The Host resolves it, as it
+    # resolves the session's own route.
+    subagent_completion: SubagentCompletionRoute | None = None
     affinity_id: AffinityIdSource | None = None
     # Host attribution attached only to Mistral completion requests because it
     # is a Mistral-specific request field.
@@ -594,6 +603,9 @@ _LOCAL_RUNTIME_ADAPTER_BEHAVIOR_FIELDS = frozenset({
     "thinking",
     "active_model",
     "active_agent",
+    # The route the session's generic subagent children complete on; like
+    # ``active_model`` it is behavior a forked child keeps.
+    "subagent_completion",
     "compaction_model",
     "title_model",
     "title_prompt",

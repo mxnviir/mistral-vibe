@@ -271,6 +271,7 @@ from vibe.app_server._session_model import (
     model_thinking_is_session_writable,
     set_session_active_model_override,
     set_session_reasoning_effort_override,
+    set_session_subagent_model_override,
     with_session_active_model_write,
 )
 from vibe.app_server._session_peers import SessionPeers
@@ -7549,6 +7550,7 @@ class UnifiedHarnessBackendAdapter(  # noqa: PLR0904 - implements app-server ses
                 self._context.config_orchestrator.config,
                 model_alias=params.model_alias,
                 reasoning_effort=params.reasoning_effort,
+                subagent_model=params.subagent_model,
             )
         except ValueError as exc:
             raise SessionBackendError(
@@ -7593,11 +7595,20 @@ class UnifiedHarnessBackendAdapter(  # noqa: PLR0904 - implements app-server ses
         orchestrator = self._context.config_orchestrator
         model_alias = params.model_alias
         self._require_known_model(model_alias)
+        subagent_model = params.subagent_model
+        self._require_known_model(subagent_model)
         failures: list[BaseException] = []
         if model_alias:
             failures = await set_session_active_model_override(
                 orchestrator,
                 model_alias,
+                reason="session model pick",
+                preflight=self._preflight_config,
+            )
+        if not failures and subagent_model is not None:
+            failures = await set_session_subagent_model_override(
+                orchestrator,
+                subagent_model,
                 reason="session model pick",
                 preflight=self._preflight_config,
             )

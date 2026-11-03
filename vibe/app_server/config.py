@@ -79,6 +79,15 @@ class ProxySettingsView(ProtocolModel):
     descriptions: dict[str, str]
 
 
+class ModelProfileView(ProtocolModel):
+    """A named main + subagent mode the model picker offers as one row."""
+
+    name: str
+    main: str
+    subagent: str
+    display_name: str | None = None
+
+
 class ConfigView(ProtocolModel):
     active_model: ModelConfigView
     # Whether the user has pinned a specific model, vs. the "default" (unpinned)
@@ -119,6 +128,11 @@ class ConfigView(ProtocolModel):
     experimental_enable_registry_skills: bool = False
     experimental_enable_local_projects: bool = False
     models: list[ModelConfigView]
+    # The model the session's subagent children run on; empty inherits the
+    # session's own. Defaulted so a client against an older server still
+    # renders the picker (ADR 0014).
+    subagent_model: str = ""
+    model_profiles: list[ModelProfileView] = Field(default_factory=list)
     transcribe_models: list[str]
     tts_models: list[str]
     transcription: TranscriptionConfigView

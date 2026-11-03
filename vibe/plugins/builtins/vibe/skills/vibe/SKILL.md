@@ -193,6 +193,7 @@ built-in tool's settings, for an editor to validate `config.toml` against.
 ```toml
 # Model selection
 active_model = "mistral-medium-3.5"  # Model alias to pin; omit or set "" to follow the server-routed default
+subagent_model = "zai-glm-5-3-flash"  # Optional; the model subagent children run on. Omit or "" keeps them on the session's own model; a profile or a model entry naming its own alias still wins
 
 # UI preferences
 theme = "auto"  # Follow terminal background, then OS light/dark preference
@@ -300,6 +301,16 @@ emits_finish_reason = false  # set false for OpenAI-compatible endpoints that en
 # model: a pattern matching
 # nothing warns — the drift signal; do not merge them to silence it.
 allowed_models = ["mistral-vibe-cli-*"]
+
+# A whole mode: a named main + subagent pair, one row in the /model picker.
+# Picking it writes both selections together (then chains /thinking as any
+# model pick does). Both aliases must be defined under [[models]]; a profile
+# naming an unknown alias is not offered, with one startup warning. A custom
+# main+subagent pick stages two selections and writes them just the same.
+# [model_profiles.glm-mode]
+# display_name = "GLM 5.3 main + GLM 5.3 Flash sub"
+# main = "glm-5-3"
+# subagent = "zai-glm-5-3-flash"
 
 [[models]]
 name = "mistral-vibe-cli-latest"
@@ -977,7 +988,9 @@ allowlists or denylists, like the main agent's; a tool its profile sets to
 `never` stays refused.
 To use a custom subagent, the model must spawn it by its agent type
 (`config_name`); a subagent spawned with only a name inherits the main agent's
-configuration.
+configuration. The model a subagent's children complete on: the subagent's own
+`active_model` override first, then the session's `subagent_model` setting, then
+the session's model.
 
 A subagent's instructions (`instructions`, or the prompt `system_prompt_id`
 names) are limited to 65,536 characters; the primary agent's prompt has no such
@@ -1002,7 +1015,7 @@ session's model.
 
 - `/help` - Show help message
 - `/config` - Full-screen settings browser. Fields show their value and origin layer (default / TOML / env / override). Type to filter, arrows to move, Enter to edit; booleans toggle, closed-set fields (theme, models) pick from a list, scalars edit inline, complex fields open a JSON editor. The edit modal shows an inspector of the layers setting the field; edits persist to the user config (`~/.vibe/config.toml`) by default, `Tab` cycles the save target through the project config (`.vibe/config.toml`, when the project layer is active) and the ephemeral session override (until restart), and `Ctrl+R` clears the field one writable layer at a time toward the default. The `tools` field opens a grouped tool list with a per-tool config editor (permission, allow/deny lists, `Ctrl+E` for raw JSON). Enabling/disabling whole MCP servers or connectors stays in `/mcp`.
-- `/model` - Select active model. The footer shows the active model and its thinking level (`Name[level]`) before the token counter; clicking it opens `/model` and keeps the prompt being typed (only while idle, like the typed command). On narrow terminals the model is shortened first, then the working directory, and the model is hidden before the working directory gets very short.
+- `/model` - Select active model. The footer shows the active model and its thinking level (`Name[level]`) before the token counter; clicking it opens `/model` and keeps the prompt being typed (only while idle, like the typed command). The picker lists Default, one row per model, one per configured `[model_profiles.*]` main+subagent pair (written together on pick), and a Custom entry that stages a main-model pick then a subagents'-model pick. On narrow terminals the model is shortened first, then the working directory, and the model is hidden before the working directory gets very short.
 - `/thinking` - Select thinking level
 - `/theme` - Select UI theme; `auto` follows terminal/OS appearance (persisted in config)
 - `/reload` - Reload configuration, agent instructions, and skills from disk (skills added or edited on disk are also picked up on their own while `file_watcher_for_autocomplete` is on, except in sandboxed sessions)

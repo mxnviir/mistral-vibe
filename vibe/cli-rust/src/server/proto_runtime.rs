@@ -92,6 +92,13 @@ pub struct ConfigView {
     pub enable_telemetry: bool,
     #[serde(default, deserialize_with = "crate::utils::json::lenient")]
     pub models: Vec<ModelView>,
+    /// The model subagent children run on (`subagent_model`); empty inherits
+    /// the session's own.
+    #[serde(default)]
+    pub subagent_model: String,
+    /// Named main + subagent modes, offered as whole rows in the picker.
+    #[serde(default, deserialize_with = "crate::utils::json::lenient")]
+    pub model_profiles: Vec<ModelProfileView>,
     pub transcription: Option<AudioView>,
     pub speech: Option<AudioView>,
     #[serde(default, deserialize_with = "crate::utils::json::lenient")]
@@ -113,6 +120,15 @@ pub struct ModelView {
     pub supports_images: Option<bool>,
     #[serde(deserialize_with = "crate::utils::json::lenient")]
     pub thinking_levels: Vec<String>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ModelProfileView {
+    pub name: String,
+    pub main: String,
+    pub subagent: String,
+    pub display_name: Option<String>,
 }
 
 /// `TranscriptionConfigView` or `SpeechConfigView`: a model and its provider.

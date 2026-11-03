@@ -52,6 +52,7 @@ from vibe.core.config.models import (
     MCPServer,
     MissingAPIKeyError,
     ModelConfig,
+    ModelProfileConfig,
     OtelRedactionMode,
     ProjectContextConfig,
     ProviderConfig,
@@ -526,6 +527,32 @@ class VibeConfigSchema(ConfigSchema):
             )
             logger.warning("%s", message)
             config._validation_warnings.append(message)
+        # A profile is offered only as a whole: either of its aliases missing
+        # drops the mode, with one warning naming both.
+        if config.model_profiles:
+            broken = [
+                (name, profile.main, profile.subagent)
+                for name, profile in config.model_profiles.items()
+                if profile.main not in config.available_models()
+                or profile.subagent not in config.available_models()
+            ]
+            if broken:
+                object.__setattr__(
+                    config,
+                    "model_profiles",
+                    {
+                        name: profile
+                        for name, profile in config.model_profiles.items()
+                        if (name, profile.main, profile.subagent) not in broken
+                    },
+                )
+                for name, main, subagent in broken:
+                    message = (
+                        f"Model profile '{name}' is not offered: "
+                        f"'{main}' and '{subagent}' must both be configured [[models]]."
+                    )
+                    logger.warning("%s", message)
+                    config._validation_warnings.append(message)
         # Model validators run before origins are assigned.
         if (
             config.origin_of("allowed_models") == AdminConfigLayer.NAME
@@ -549,6 +576,15 @@ class VibeConfigSchema(ConfigSchema):
 
     # Models
     active_model: Annotated[str, WithReplaceMerge()] = UNPINNED_ACTIVE_MODEL
+    # The model alias subagent child sessions run on. Empty inherits the
+    # session's own model; a declared agent profile's `active_model` still wins.
+    subagent_model: Annotated[str, WithReplaceMerge()] = ""
+    # Named main + subagent model pairs (`[model_profiles.<name>]`), offered as
+    # whole modes in the `/model` picker. Picking one writes `active_model` and
+    # `subagent_model` together.
+    model_profiles: Annotated[dict[str, ModelProfileConfig], WithDeepMerge()] = Field(
+        default_factory=dict
+    )
     # Experiment-routed default model alias, populated at runtime by the
     # GrowthBook layer. It only takes effect when ``active_model`` is unpinned.
     routed_default_model: Annotated[str, WithReplaceMerge()] = ""

@@ -2,7 +2,11 @@ from __future__ import annotations
 
 from typing import Any
 
-from vibe.app_server._config_paths import ACTIVE_MODEL_PATH, model_thinking_path
+from vibe.app_server._config_paths import (
+    ACTIVE_MODEL_PATH,
+    SUBAGENT_MODEL_PATH,
+    model_thinking_path,
+)
 from vibe.app_server.protocol import ConfigWriteOpWire
 from vibe.core.config.layers.overrides import OverridesLayer
 from vibe.core.config.layers.project import ProjectConfigLayer
@@ -34,7 +38,11 @@ def model_after_write(config: VibeConfigSchema, model_alias: str | None) -> str:
 
 
 def model_config_write_ops(
-    config: VibeConfigSchema, *, model_alias: str | None, reasoning_effort: str | None
+    config: VibeConfigSchema,
+    *,
+    model_alias: str | None,
+    reasoning_effort: str | None,
+    subagent_model: str | None = None,
 ) -> list[ConfigWriteOpWire]:
     """The writes a model pick makes, from the pick itself.
 
@@ -44,17 +52,25 @@ def model_config_write_ops(
 
     An empty alias is how this configuration says "follow the default", and
     writing it is the only way to unpin a session, so it is passed through
-    rather than looked up.
+    rather than looked up. ``subagent_model`` (empty unpinning too) sets the
+    alias the session's subagent children run on.
 
     Raises ``ValueError`` for a model this configuration does not offer.
     """
     if model_alias and model_alias not in config.models:
         available = ", ".join(sorted(config.models))
         raise ValueError(f"Unknown model: {model_alias}. Available: {available}")
+    if subagent_model and subagent_model not in config.models:
+        available = ", ".join(sorted(config.models))
+        raise ValueError(f"Unknown model: {subagent_model}. Available: {available}")
     ops: list[ConfigWriteOpWire] = []
     if model_alias is not None:
         ops.append(
             ConfigWriteOpWire(op="set", path=ACTIVE_MODEL_PATH, value=model_alias)
+        )
+    if subagent_model is not None:
+        ops.append(
+            ConfigWriteOpWire(op="set", path=SUBAGENT_MODEL_PATH, value=subagent_model)
         )
     if reasoning_effort is not None:
         target = model_after_write(config, model_alias)

@@ -25,6 +25,9 @@ pub struct ModelPick {
     pub alias: String,
     /// The model it resolves to, whose `/models/<alias>/thinking` is written.
     pub target: String,
+    /// Written with the pick: the model subagent children run on. `Some("")`
+    /// unpins to the session's own; `None` leaves the configured one alone.
+    pub subagent_alias: Option<String>,
     pub scope: Scope,
 }
 
@@ -141,6 +144,9 @@ pub fn select(app: &mut App, client: &Arc<Client>, scope: Scope) {
     let mut saved = json!({});
     if let Some(pick) = &pick {
         saved["modelAlias"] = json!(pick.alias);
+        if let Some(subagent) = &pick.subagent_alias {
+            saved["subagentModel"] = json!(subagent);
+        }
     }
     if !target.is_empty() {
         let path = format!("/models/{}/thinking", escape_json_pointer(&target));
@@ -176,7 +182,15 @@ pub fn commit_model(app: &mut App, client: &Arc<Client>, pick: &ModelPick) {
 }
 
 fn model_ops(pick: &ModelPick) -> Vec<Value> {
-    config_write::pick_ops("/active_model", &pick.alias, pick.scope)
+    let mut ops = config_write::pick_ops("/active_model", &pick.alias, pick.scope);
+    if let Some(subagent) = &pick.subagent_alias {
+        ops.extend(config_write::pick_ops(
+            "/subagent_model",
+            subagent,
+            pick.scope,
+        ));
+    }
+    ops
 }
 
 /// Write the pick, then `config/reload`; one event reaches the UI. A saved

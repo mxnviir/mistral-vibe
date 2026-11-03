@@ -46,6 +46,7 @@ fn pick_opens_thinking_on_the_picked_model() {
         Some(ModelPick {
             alias: "large".into(),
             target: "large".into(),
+            subagent_alias: None,
             scope: Scope::Session,
         })
     );
@@ -129,4 +130,121 @@ fn a_pinned_model_opens_highlighted_and_marked_current() {
     assert!(model_picker::is_current(&app, 2));
     assert!(!model_picker::is_current(&app, 0));
     assert_eq!(model_picker::selected_alias(&app), "large");
+}
+
+/// A snapshot with one main+subagent mode and a subagent model set.
+fn profile_runtime() -> Value {
+    let mut value = runtime();
+    let config = value["runtime"]["config"].as_object_mut().unwrap();
+    config.insert(
+        "modelProfiles".to_owned(),
+        json!([{"name": "glm-mode", "main": "large", "subagent": "medium"}]),
+    );
+    config.insert("subagentModel".to_owned(), json!("medium"));
+    config.insert(
+        "activeModel".to_owned(),
+        json!({"alias": "large", "thinking": "high", "thinkingLevels": ["off", "high", "max"]}),
+    );
+    config.insert("activeModelPinned".to_owned(), json!(true));
+    value
+}
+
+/// The Custom row: after the Default row, the models and the profiles.
+fn custom_row(app: &App) -> usize {
+    model_picker::option_count(app) - 1
+}
+
+#[test]
+fn full_mode_offers_one_row_per_profile_plus_the_custom_entry() {
+    let mut app = App::default();
+    vibe_rs::event_handler::apply_runtime_value(&mut app, &profile_runtime());
+    model_picker::open(&mut app);
+    assert_eq!(model_picker::option_count(&app), 6);
+    assert_eq!(model_picker::option_label(&app, 4).0, "glm-mode");
+    assert!(model_picker::option_label(&app, 5)
+        .0
+        .starts_with("Custom main"));
+}
+
+#[test]
+fn a_fully_active_profile_row_is_marked_current() {
+    let mut app = App::default();
+    vibe_rs::event_handler::apply_runtime_value(&mut app, &profile_runtime());
+    model_picker::open(&mut app);
+    assert!(model_picker::is_current(&app, 4));
+    assert!(!model_picker::is_current(&app, 5));
+}
+
+#[test]
+fn a_profile_pick_holds_main_and_subagent_for_one_write() {
+    let mut app = App::default();
+    vibe_rs::event_handler::apply_runtime_value(&mut app, &profile_runtime());
+    model_picker::open(&mut app);
+    app.model_picker.list.highlight(4);
+    select(&mut app, Scope::Saved);
+    assert!(!app.model_picker.open);
+    assert!(app.thinking_picker.open);
+    assert_eq!(
+        app.thinking_picker.model_pick,
+        Some(ModelPick {
+            alias: "large".into(),
+            target: "large".into(),
+            subagent_alias: Some("medium".into()),
+            scope: Scope::Saved,
+        })
+    );
+    assert_eq!(app.thinking_picker.levels, vec!["off", "high", "max"]);
+}
+
+#[test]
+fn the_custom_flow_stages_main_then_subagent() {
+    let mut app = App::default();
+    vibe_rs::event_handler::apply_runtime_value(&mut app, &profile_runtime());
+    model_picker::open(&mut app);
+    app.model_picker.list.highlight(custom_row(&app));
+    select(&mut app, Scope::Saved);
+    // The first stage stays open, listing only the Default row and the models.
+    assert!(app.model_picker.open);
+    assert_eq!(
+        app.model_picker.custom_stage,
+        Some(vibe_rs::app::CustomStage::PickMain)
+    );
+    assert_eq!(model_picker::option_count(&app), 4);
+
+    // Picking the main model moves to the subagents' stage.
+    app.model_picker.list.highlight(2);
+    select(&mut app, Scope::Saved);
+    assert!(app.model_picker.open);
+    assert_eq!(
+        app.model_picker.custom_stage,
+        Some(vibe_rs::app::CustomStage::PickSub)
+    );
+    assert_eq!(app.model_picker.custom_main.as_deref(), Some("large"));
+
+    // "Inherit session model" unpins the subagent model; both writes travel together.
+    app.model_picker.list.highlight(0);
+    select(&mut app, Scope::Saved);
+    assert_eq!(
+        app.thinking_picker.model_pick,
+        Some(ModelPick {
+            alias: "large".into(),
+            target: "large".into(),
+            subagent_alias: Some(String::new()),
+            scope: Scope::Saved,
+        })
+    );
+}
+
+#[test]
+fn esc_closes_the_staged_flow_without_writing() {
+    let mut app = App::default();
+    vibe_rs::event_handler::apply_runtime_value(&mut app, &profile_runtime());
+    model_picker::open(&mut app);
+    app.model_picker.list.highlight(custom_row(&app));
+    select(&mut app, Scope::Saved);
+    model_picker::cancel(&mut app);
+    assert!(!app.model_picker.open);
+    assert_eq!(app.model_picker.custom_stage, None);
+    assert!(!app.thinking_picker.open);
+    assert_eq!(app.thinking_picker.model_pick, None);
 }

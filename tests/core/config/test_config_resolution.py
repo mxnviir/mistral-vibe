@@ -2370,3 +2370,68 @@ class TestThinkingLevels:
         )
 
         assert model.thinking_levels == ["off", "high"]
+
+
+class TestModelProfiles:
+    @pytest.mark.asyncio
+    async def test_a_profile_names_two_aliases_and_is_offered_as_whole(self) -> None:
+        """*Prepare*: Two models and a profile naming them.
+        *Do*: Build the config from its layers.
+        *Assert*: The profile loads with its pair, and it is offered.
+        """
+        builder = _LayeredConfigBuilder(VibeConfigSchema)
+        builder.add_layer(
+            FakeRawLayer(
+                name="user",
+                data={
+                    "subagent_model": "sub-model",
+                    "model_profiles": {
+                        "glm-mode": {"main": "my-model", "subagent": "sub-model"}
+                    },
+                    "providers": [_custom_provider_payload(backend="generic")],
+                    "models": [
+                        _custom_model_payload(name="my-model", alias="my-model"),
+                        _custom_model_payload(name="sub-model", alias="sub-model"),
+                    ],
+                },
+            )
+        )
+
+        config = await builder.build()
+
+        assert config.subagent_model == "sub-model"
+        profile = config.model_profiles["glm-mode"]
+        assert (profile.main, profile.subagent) == ("my-model", "sub-model")
+        assert "glm-mode" in config.model_profiles
+        assert config.validation_warnings == ()
+
+    @pytest.mark.asyncio
+    async def test_a_profile_naming_an_unknown_alias_is_dropped_with_a_warning(
+        self,
+    ) -> None:
+        """*Prepare*: A profile whose subagent alias no model defines.
+        *Do*: Build the config from its layers.
+        *Assert*: The profile is dropped, with one warning naming it and both
+        aliases' requirement.
+        """
+        builder = _LayeredConfigBuilder(VibeConfigSchema)
+        builder.add_layer(
+            FakeRawLayer(
+                name="user",
+                data={
+                    "model_profiles": {
+                        "glm-mode": {"main": "my-model", "subagent": "missing"}
+                    },
+                    "providers": [_custom_provider_payload(backend="generic")],
+                    "models": [_custom_model_payload(name="my-model", alias="my-model")],
+                },
+            )
+        )
+
+        config = await builder.build()
+
+        assert config.model_profiles == {}
+        assert len(config.validation_warnings) == 1
+        warning = config.validation_warnings[0]
+        assert "glm-mode" in warning
+        assert "both be configured" in warning

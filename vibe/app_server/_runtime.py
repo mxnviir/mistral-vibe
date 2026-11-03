@@ -1258,18 +1258,30 @@ class HarnessProcess:
         def completion_route(
             overrides: Mapping[str, Any],
         ) -> DeclaredCompletionRoute | None:
-            # Resolved as the session resolves its own model, from the profile's
-            # layer over the session's config; only the alias lookup differs, as
-            # a model the allowlist excludes is refused rather than replaced.
+            # A profile's `active_model` wins; without one, a configured
+            # subagent model applies to every declared type (and, at the
+            # adapter, to the generic child).
+            alias = overrides.get("active_model")
+            if alias is None:
+                alias = config_orchestrator.config.subagent_model
+                if not alias:
+                    return None
+            return completion_route_for_alias(alias, overrides)
+
+        def completion_route_for_alias(
+            alias: str, overrides: Mapping[str, Any] | None = None
+        ) -> DeclaredCompletionRoute:
+            """The route that alias's children complete on, resolved as the
+            session resolves its own model, from the profile's layer over the
+            session's config; only the alias lookup differs, as a model the
+            allowlist excludes is refused rather than replaced.
+            """
             from mistralai_vibe_local_harness.vibe.plugins import (
                 DeclaredCompletionRoute,
             )
 
-            alias = overrides.get("active_model")
-            if alias is None:
-                return None
             profile_config = config_orchestrator.copy()
-            apply_profile_overrides(profile_config, dict(overrides))
+            apply_profile_overrides(profile_config, dict(overrides or {}))
             config = profile_config.config
             model = config.models.get(alias) if isinstance(alias, str) else None
             if model is None:
@@ -1572,6 +1584,17 @@ class HarnessProcess:
                 else ToolGate.PROMPT
             )
             max_iterations = settings.max_turns or options.max_turns or 1_000
+            # The generic child's route: a configured subagent model, else the
+            # session's own. Unresolvable, the setting is ignored with a
+            # warning rather than failing the derivation: unlike a declared
+            # profile's choice, choosing it well is the config's job, and the
+            # children still running on the session's model is the old
+            # behaviour.
+            try:
+                subagent_completion = completion_route({})
+            except ValueError as error:
+                logger.warning("Subagent model ignored: %s", error)
+                subagent_completion = None
             session_plugins = plugins if settings.plugins is None else settings.plugins
             skill_issues, skills = discover_session_skills(
                 lambda: orchestrator.config,
@@ -1756,6 +1779,7 @@ class HarnessProcess:
                     backend=str(provider.backend),
                     api_style=provider.api_style,
                     base_url=provider.api_base,
+                    subagent_completion=subagent_completion,
                     # A port, not a snapshot: a Vertex token expires inside a
                     # normal session's lifetime, and a re-exported key or a
                     # ``/config`` provider switch has no derivation to ride in

@@ -705,6 +705,19 @@ def merge_model_payloads(
     return merged
 
 
+class ModelProfileConfig(BaseModel):
+    """A named main + subagent model pair the `/model` picker offers as one mode.
+
+    Both keys are aliases defined under `[[models]]`. Picking the profile sets
+    the session's main model to ``main`` and its default subagent model to
+    ``subagent``, in one pick.
+    """
+
+    main: str
+    subagent: str
+    display_name: str | None = None
+
+
 class TranscribeModelConfig(BaseModel):
     name: str
     provider: str

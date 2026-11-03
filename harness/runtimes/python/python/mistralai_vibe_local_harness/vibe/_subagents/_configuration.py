@@ -121,8 +121,13 @@ def resolve_subagent_configuration(
     generic_config = _child_core_config(
         config, system_instructions=config.system_instructions
     )
+    # A configured subagent route replaces the parent's model fields before the
+    # binding digest, so a child spawned under it keeps that template.
     generic_adapter = replace(
-        adapter, env=dict(adapter.env), tool_modes=dict(adapter.tool_modes)
+        adapter,
+        env=dict(adapter.env),
+        tool_modes=dict(adapter.tool_modes),
+        **_completion_overlay(adapter, adapter.subagent_completion),
     )
     generic = LocalChildSessionBinding(
         template_digest=_binding_digest(

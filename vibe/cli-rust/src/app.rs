@@ -535,6 +535,23 @@ pub struct ModelOption {
     pub thinking_levels: Vec<String>,
 }
 
+/// A configured main + subagent mode, one row in the `/model` picker.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ModelProfileOption {
+    pub name: String,
+    pub display_name: String,
+    pub main: String,
+    pub subagent: String,
+}
+
+/// The staged flow behind the picker's Custom row: pick the main model, then
+/// the model the subagents run on; staging both writes them together.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CustomStage {
+    PickMain,
+    PickSub,
+}
+
 /// `/model` picker state (a bottom-app).
 #[derive(Default)]
 pub struct ModelPicker {
@@ -544,14 +561,22 @@ pub struct ModelPicker {
     pub list: crate::option_list::OptionList<crate::option_list::MultiAction>,
     /// Model snapshot from `runtime/read`, refreshed on `runtime/updated`.
     pub models: Vec<ModelOption>,
+    /// Profile modes from the same snapshot: one row each, after the models.
+    pub profiles: Vec<ModelProfileOption>,
     /// The active model's alias (`activeModel.alias`).
     pub current_model: String,
+    /// The model subagent children run on (`subagentModel`).
+    pub current_subagent: String,
     /// Whether the active model is pinned (`activeModelPinned`); unpinned = Default.
     pub is_pinned: bool,
     /// Display name of the default model, shown in the Default row hint.
     pub default_display_name: String,
     /// Alias the Default row resolves to (`defaultModelAlias`).
     pub default_alias: String,
+    /// While set the picker lists main/subagent choices for the Custom flow.
+    pub custom_stage: Option<CustomStage>,
+    /// The main-model alias the staged flow committed to in its first step.
+    pub custom_main: Option<String>,
 }
 
 /// The artifacts modal state (a bottom-app): the session's PR/MR links.

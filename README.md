@@ -163,6 +163,8 @@ The `task` tool allows the agent to delegate work to subagents:
 
 Create custom subagents by adding `agent_type = "subagent"` to your agent configuration. Vibe comes with a built-in subagent called `explore`, a read-only subagent for codebase exploration and skill loading used internally for delegation.
 
+Subagents run on the session's model by default. Set `subagent_model` in `config.toml` (to an alias defined under `[[models]]`) to run every subagent's children on another model, or define named pairs under `[model_profiles.<name>]` (`main` + `subagent`) and pick one in `/model`: the picker lists each pair as one row, and picking it switches the session's main model and its subagents together. The picker's **Custom main + subagents...** entry stages the two selections by hand when you want a pair you have not named in config.
+
 The interactive prompt shows each known subagent's name, type, live status, and
 latest measured context size. Opening a
 subagent also shows its active status above the prompt and its context use in the

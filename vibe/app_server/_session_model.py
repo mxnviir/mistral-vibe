@@ -1,8 +1,13 @@
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable, Mapping, Sequence
+from typing import NamedTuple
 
-from vibe.app_server._config_paths import ACTIVE_MODEL_PATH, model_thinking_path
+from vibe.app_server._config_paths import (
+    ACTIVE_MODEL_PATH,
+    SUBAGENT_MODEL_PATH,
+    model_thinking_path,
+)
 from vibe.app_server._config_write import config_write_ops_to_patches
 from vibe.app_server.protocol import ConfigWriteOpWire
 from vibe.core.config.layers.admin import AdminConfigLayer
@@ -166,3 +171,65 @@ async def set_session_reasoning_effort_override(
         sparse_override_model_aliases=await orchestrator.sparse_override_model_aliases(),
     )
     return await orchestrator.apply_patch(operations, reason=reason)
+
+
+class SubagentModelOverride(NamedTuple):
+    """Whether the session override layer pins a subagent model, and to what."""
+
+    pinned: bool
+    value: str | None
+
+
+def override_subagent_model(
+    orchestrator: ConfigOrchestrator[VibeConfigSchema],
+) -> SubagentModelOverride:
+    layer = next(
+        (layer for layer in orchestrator.layers if layer.name == OverridesLayer.NAME),
+        None,
+    )
+    if layer is None or layer.cached_data is None:
+        return SubagentModelOverride(False, None)
+    value = getattr(layer.cached_data, "subagent_model", None)
+    if not isinstance(value, str):
+        return SubagentModelOverride(False, None)
+    return SubagentModelOverride(True, value)
+
+
+async def set_session_subagent_model_override(
+    orchestrator: ConfigOrchestrator[VibeConfigSchema],
+    subagent_model: str,
+    *,
+    reason: str,
+    preflight: Callable[[VibeConfigSchema], Awaitable[None]] | None = None,
+) -> list[BaseException]:
+    """Scope the session's subagent model pick to the session override layer."""
+    if override_subagent_model(orchestrator) == SubagentModelOverride(
+        True, subagent_model
+    ):
+        return []
+    return await orchestrator.apply_patch(
+        [
+            AddOperationPatch(
+                path=SUBAGENT_MODEL_PATH,
+                value=subagent_model,
+                target_layer_name=OverridesLayer.NAME,
+            )
+        ],
+        reason=reason,
+        preflight=preflight,
+    )
+
+
+async def clear_session_subagent_model_override(
+    orchestrator: ConfigOrchestrator[VibeConfigSchema], *, reason: str
+) -> list[BaseException]:
+    if not override_subagent_model(orchestrator).pinned:
+        return []
+    return await orchestrator.apply_patch(
+        [
+            RemoveOperationPatch(
+                path=SUBAGENT_MODEL_PATH, target_layer_name=OverridesLayer.NAME
+            )
+        ],
+        reason=reason,
+    )

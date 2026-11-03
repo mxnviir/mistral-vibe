@@ -52,7 +52,7 @@ fn draw_box(app: &mut App, f: &mut Frame, area: Rect) {
     f.buffer_mut().set_string(
         bx + 2,
         by + 1,
-        "Select Model",
+        crate::model_picker::title(app),
         Style::default()
             .fg(theme::primary())
             .bg(theme::background())
@@ -101,7 +101,7 @@ fn draw_box(app: &mut App, f: &mut Frame, area: Rect) {
     hint_line::draw(f, bx + 2, by + h - 2, hint_line::PICK_HINTS);
 }
 
-/// One option row: the `›`/blank marker, the label, and (row 0) the dim hint.
+/// One option row: the `›`/blank marker, the label, and (when set) the dim hint.
 fn draw_option(app: &App, f: &mut Frame, row: Rect, i: usize) {
     let is_hl = i == app.model_picker.list.selected();
     let current = is_current(app, i);
@@ -119,17 +119,13 @@ fn draw_option(app: &App, f: &mut Frame, row: Rect, i: usize) {
         true => base.add_modifier(Modifier::BOLD),
         false => base,
     };
-    let label = if i == 0 {
-        "Default"
-    } else {
-        &app.model_picker.models[i - 1].display_name
-    };
-    f.buffer_mut().set_string(x + 2, y, label, name_style);
+    let (label, hint) = crate::model_picker::option_label(app, i);
+    f.buffer_mut().set_string(x + 2, y, &label, name_style);
 
-    if i == 0 {
-        let hint = format!("  (currently {})", app.model_picker.default_display_name);
+    if let Some(hint) = hint {
         let hint_style = dim;
         let hint_x = x + 2 + label.chars().count() as u16;
-        f.buffer_mut().set_string(hint_x, y, hint, hint_style);
+        f.buffer_mut()
+            .set_string(hint_x, y, format!("  {hint}"), hint_style);
     }
 }

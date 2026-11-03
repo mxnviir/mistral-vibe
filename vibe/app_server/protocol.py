@@ -1459,6 +1459,9 @@ class ModelConfigWriteParams(ProtocolModel):
     session_id: str
     model_alias: str | None = None
     reasoning_effort: str | None = None
+    # A whole-mode pick also sets the model the session's subagents run on.
+    # None leaves the configured value alone; empty unpins to the default.
+    subagent_model: str | None = None
     # Otherwise the pick also becomes the user's default, as a picker's does.
     session_only: bool = False
 

@@ -9,6 +9,7 @@ from vibe.app_server.config import (
     AudioProviderView,
     ConfigView,
     ModelConfigView,
+    ModelProfileView,
     ModelSource,
     SpeechConfigView,
     TranscribeModelConfigView,
@@ -129,6 +130,16 @@ def project_config_view(
                 route_facts=_route_facts(config, model),
             )
             for model in models
+        ],
+        subagent_model=config.subagent_model,
+        model_profiles=[
+            ModelProfileView(
+                name=name,
+                main=profile.main,
+                subagent=profile.subagent,
+                display_name=profile.display_name,
+            )
+            for name, profile in config.model_profiles.items()
         ],
         transcribe_models=[model.alias for model in config.transcribe_models],
         tts_models=[model.alias for model in config.tts_models],
