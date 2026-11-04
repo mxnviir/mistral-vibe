@@ -819,3 +819,84 @@ async def test_the_orgs_agent_lists_bound_every_mode_switch() -> None:
         ValueError, match="Agent 'auto-approve' is disabled by your organization."
     ):
         agents.switch_profile("auto-approve")
+
+
+class TestRoleSubagents:
+    """The `/agent` picker's subagent roles: builtins, every one read-only or
+    session-gated, each with its own prompt."""
+
+    ROLES = (
+        (BuiltinAgentName.EXPLORE, AgentSafety.SAFE, "explore"),
+        (BuiltinAgentName.RESEARCHER, AgentSafety.SAFE, "researcher"),
+        (BuiltinAgentName.PLANNER, AgentSafety.SAFE, "planner"),
+        (BuiltinAgentName.ARCHITECT, AgentSafety.SAFE, "architect"),
+        (BuiltinAgentName.REVIEWER, AgentSafety.SAFE, "reviewer"),
+    )
+
+    @pytest.mark.parametrize(("name", "safety", "prompt"), ROLES)
+    def test_a_read_only_role_subagent(self, name, safety, prompt) -> None:
+        profile = BUILTIN_AGENTS[name]
+        assert profile.agent_type == AgentType.SUBAGENT
+        assert profile.safety is safety
+        assert profile.overrides.get("system_prompt_id") == prompt
+        # Read-only: the write tools are theirs to request, not to run.
+        enabled = set(profile.overrides.get("enabled_tools", []))
+        assert enabled == {"grep", "read_file", "skill"}
+
+    @pytest.mark.parametrize("name", [BuiltinAgentName.CODER, BuiltinAgentName.TESTER])
+    def test_a_write_role_subagent_edits_only_under_the_sessions_approval(
+        self, name
+    ) -> None:
+        profile = BUILTIN_AGENTS[name]
+        assert profile.agent_type == AgentType.SUBAGENT
+        assert profile.safety is AgentSafety.DESTRUCTIVE
+        enabled = set(profile.overrides.get("enabled_tools", []))
+        assert {"write_file", "edit", "bash"} <= enabled
+        # Idempotent-approval: no bypass of the session's mode.
+        assert "bypass_tool_permissions" not in profile.overrides
+
+    def test_every_role_name_is_listed_for_the_picker(self) -> None:
+        from vibe.core.agents.models import ROLE_SUBAGENTS
+
+        assert BuiltinAgentName.CODER in ROLE_SUBAGENTS
+        assert BuiltinAgentName.TESTER in ROLE_SUBAGENTS
+        # A listed name is a real builtin: the picker never offers a phantasm.
+        assert all(name in BUILTIN_AGENTS for name in ROLE_SUBAGENTS)
+
+    def test_role_prompts_are_bundled_files(self) -> None:
+        from vibe.core.prompts import SystemPrompt
+
+        for prompt in (
+            SystemPrompt.RESEARCHER,
+            SystemPrompt.PLANNER,
+            SystemPrompt.ARCHITECT,
+            SystemPrompt.REVIEWER,
+            SystemPrompt.CODER,
+            SystemPrompt.TESTER,
+        ):
+            assert prompt.path.is_file(), prompt.path
+
+
+class TestBareSpawnDefaultSubagent:
+    """A bare spawn (no type named) runs the session's default subagent role
+    when a binding admits it, else the generic child it always has."""
+
+    @staticmethod
+    def _controller(bindings: dict, default_subagent: str | None, rejected=()):
+        from mistralai_vibe_local_harness.vibe._subagents._controller import (
+            SubagentController,
+        )
+        from mistralai_vibe_local_harness.vibe._subagents._operations import SpawnInput
+
+        controller = SubagentController.__new__(SubagentController)
+        controller._bindings = bindings
+        controller._rejected_agent_types = dict(rejected)
+        controller._default_subagent = default_subagent
+        return controller, SpawnInput
+
+    def _spawn(self, controller, SpawnInput, agent_type):
+        return SpawnInput.model_validate({
+            "agentName": "worker",
+            "message": "do the work",
+            "agentType": agent_type,
+        })

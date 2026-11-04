@@ -194,6 +194,7 @@ built-in tool's settings, for an editor to validate `config.toml` against.
 # Model selection
 active_model = "mistral-medium-3.5"  # Model alias to pin; omit or set "" to follow the server-routed default
 subagent_model = "zai-glm-5-3-flash"  # Optional; the model subagent children run on. Omit or "" keeps them on the session's own model; a profile or a model entry naming its own alias still wins
+default_subagent = "explore"  # Optional; the role a bare subagent spawn runs (see /agent). Empty keeps the generic inherit-everything child
 
 # UI preferences
 theme = "auto"  # Follow terminal background, then OS light/dark preference
@@ -1015,7 +1016,18 @@ session's model.
 
 - `/help` - Show help message
 - `/config` - Full-screen settings browser. Fields show their value and origin layer (default / TOML / env / override). Type to filter, arrows to move, Enter to edit; booleans toggle, closed-set fields (theme, models) pick from a list, scalars edit inline, complex fields open a JSON editor. The edit modal shows an inspector of the layers setting the field; edits persist to the user config (`~/.vibe/config.toml`) by default, `Tab` cycles the save target through the project config (`.vibe/config.toml`, when the project layer is active) and the ephemeral session override (until restart), and `Ctrl+R` clears the field one writable layer at a time toward the default. The `tools` field opens a grouped tool list with a per-tool config editor (permission, allow/deny lists, `Ctrl+E` for raw JSON). Enabling/disabling whole MCP servers or connectors stays in `/mcp`.
-- `/model` - Select active model. The footer shows the active model and its thinking level (`Name[level]`) before the token counter; clicking it opens `/model` and keeps the prompt being typed (only while idle, like the typed command). The picker lists Default, one row per model, one per configured `[model_profiles.*]` main+subagent pair (written together on pick), and a Custom entry that stages a main-model pick then a subagents'-model pick. On narrow terminals the model is shortened first, then the working directory, and the model is hidden before the working directory gets very short.
+- `/agent` - Switch the primary agent and set the subagent role. The picker
+  lists the Default row, every primary agent (switching it is the Shift+Tab
+  switch, live), an Inherit-session row, one row per subagent role —
+  `explore`, `researcher`, `planner`, `architect`, `reviewer`, `coder`,
+  `tester`, plus custom subagents from `~/.vibe/agents/` — and a **Suggested**
+  row: smart-approve for the main agent plus explore for the subagent role,
+  with the reason. Enter applies the highlighted row (a subagent role becomes
+  default_subagent, and the model's bare `spawn` — one with no type named —
+  then runs that role: its prompt, tool ceiling, and model route); `s` saves
+  both displayed defaults (default_agent and default_subagent) to the
+  user config; Esc cancels. Only while idle, like `/model`.
+- `/model` - Select active model. The footer shows the active model and its thinking level (`Name[level]`) before the token counter; clicking it opens `/model` and keeps the prompt being typed (only while idle, like the typed command). The picker lists Default, one row per model, one per configured `[model_profiles.*]` main+subagent pair (written together on pick), and a Custom entry that stages a main-model pick then a subagents'-model pick. A pair or a custom pick asks its thinking in two stages: the main model's level first, then — a second picker, "Select Subagent Thinking" — the subagent model's own; both levels travel in the pick's one write, and Esc steps back from the second stage to the first. A plain model pick has one stage, as ever. On narrow terminals the model is shortened first, then the working directory, and the model is hidden before the working directory gets very short.
 - `/thinking` - Select thinking level
 - `/theme` - Select UI theme; `auto` follows terminal/OS appearance (persisted in config)
 - `/reload` - Reload configuration, agent instructions, and skills from disk (skills added or edited on disk are also picked up on their own while `file_watcher_for_autocomplete` is on, except in sandboxed sessions)

@@ -779,6 +779,15 @@ class VibeConfigSchema(ConfigSchema):
             "Applies in both interactive and programmatic (-p/--prompt) mode."
         ),
     )
+    default_subagent: Annotated[str, WithReplaceMerge()] = Field(
+        default="",
+        description=(
+            "Subagent profile a bare subagent spawn (no type named) runs. "
+            "Builtin roles: explore, researcher, planner, architect, reviewer, "
+            "coder, tester. Empty keeps the session's own model and tools. "
+            "A name that matches no available subagent is ignored."
+        ),
+    )
     # Smart approve rollout, driven by GrowthBook (see experiments/active.py). The two
     # flags are independent, mirroring model routing (#49523): one exposes the mode in
     # the picker, the other makes it the default. Kept off by default so smart approve

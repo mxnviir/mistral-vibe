@@ -61,6 +61,14 @@ pub fn apply_runtime(app: &mut App, response: &Value) {
     if let Some(agents) = RuntimeSnapshot::read(response).and_then(|r| r.agents) {
         app.agents.all = agents;
     }
+    // The /agent picker's rows mark what a saved default names: keep the live
+    // config's answers current, the way the model picker does its snapshot.
+    if let Some(config) = RuntimeSnapshot::read(response).and_then(|r| r.config) {
+        if let Some(defaulted) = config.default_agent {
+            app.session.startup_config.default_agent = defaulted;
+        }
+        app.session.startup_config.default_subagent = config.default_subagent.unwrap_or_default();
+    }
     let Some(active) = runtime
         .get("activeAgent")
         .and_then(|active| AgentSummary::deserialize(active).ok())
@@ -169,6 +177,21 @@ pub fn cycle(app: &mut App, client: &Arc<Client>) {
 /// when Shift+Tab was never pressed).
 pub fn flush_pending(app: &mut App, client: &Arc<Client>) {
     if !app.agents.switch_active {
+        send_desired(app, client);
+    }
+}
+
+/// Make `target` the desired agent and send the switch: the `/agent` picker's
+/// form of a cycle that names its destination instead of stepping. Presses
+/// coalesce with an in-flight switch exactly as Shift+Tab's do.
+pub fn pick(app: &mut App, client: &Arc<Client>, target: String) {
+    if app.agents.installing {
+        return;
+    }
+    app.agents.refused = None;
+    app.agents.desired = Some(target);
+    app.agents.switching_indicator = false;
+    if !app.agents.switch_active && app.session.session_id.is_some() {
         send_desired(app, client);
     }
 }

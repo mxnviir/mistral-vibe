@@ -29,6 +29,8 @@ pub struct ModelPick {
     /// unpins to the session's own; `None` leaves the configured one alone.
     pub subagent_alias: Option<String>,
     pub scope: Scope,
+    /// The main model's level, parked while the subagent's stage asks its own.
+    pub main_level: Option<String>,
 }
 
 impl Default for ThinkingPicker {
@@ -40,6 +42,7 @@ impl Default for ThinkingPicker {
             // Skew-safe default until the server sends the model's set.
             levels: THINKING_LEVELS.iter().map(|it| it.to_string()).collect(),
             model_pick: None,
+            subagent_stage: false,
         }
     }
 }
@@ -77,6 +80,7 @@ pub fn apply_event(app: &mut App, event: Event) {
 /// Open the picker highlighted on the current thinking level.
 pub fn open(app: &mut App) {
     if app.thinking_picker.model_pick.take().is_some() {
+        app.thinking_picker.subagent_stage = false;
         show_active_model(app);
     }
     show(app);
@@ -87,6 +91,7 @@ pub fn open_for_model(app: &mut App, pick: ModelPick, current: String, levels: V
     app.thinking_picker.levels = levels;
     app.thinking_picker.current_level = current;
     app.thinking_picker.model_pick = Some(pick);
+    app.thinking_picker.subagent_stage = false;
     show(app);
 }
 
@@ -113,12 +118,48 @@ pub fn navigate(app: &mut App, down: bool) {
     app.thinking_picker.list.step(down, len, true, |_| true);
 }
 
-/// Esc: nothing is written, a chained `/model` pick included.
+/// Esc: nothing is written, a chained `/model` pick included. A staged pick's
+/// second stage goes back one level, to the main model's stage.
 pub fn cancel(app: &mut App) {
+    if app.thinking_picker.subagent_stage {
+        app.thinking_picker.subagent_stage = false;
+        if back_to_main_stage(app) {
+            return;
+        }
+        app.thinking_picker.model_pick = None;
+        app.thinking_picker.open = false;
+        show_active_model(app);
+        return;
+    }
     app.thinking_picker.open = false;
     if app.thinking_picker.model_pick.take().is_some() {
         show_active_model(app);
     }
+}
+
+/// Redraw the main model's stage of a staged pick, highlighting the parked
+/// level; `false` when the model vanished from the snapshot and the picker
+/// must close instead.
+fn back_to_main_stage(app: &mut App) -> bool {
+    let Some(pick) = app.thinking_picker.model_pick.as_ref() else {
+        return false;
+    };
+    let Some(model) = app
+        .model_picker
+        .models
+        .iter()
+        .find(|m| m.alias == pick.target)
+        .cloned()
+    else {
+        return false;
+    };
+    app.thinking_picker.levels = model.thinking_levels;
+    app.thinking_picker.current_level = pick
+        .main_level
+        .clone()
+        .unwrap_or_else(|| model.thinking.clone());
+    show(app);
+    true
 }
 
 /// Put back the active model's levels a `/model` pick replaced.
@@ -131,11 +172,27 @@ fn show_active_model(app: &mut App) {
     app.thinking_picker.current_level = model.thinking.clone();
 }
 
+/// The picker's title: a staged pick's second stage names the step.
+pub fn title(app: &App) -> &'static str {
+    match app.thinking_picker.subagent_stage {
+        true => "Select Subagent Thinking",
+        false => "Select Thinking Level",
+    }
+}
+
 /// Commit the highlighted level, with the chained `/model` pick if any.
 pub fn select(app: &mut App, client: &Arc<Client>, scope: Scope) {
     let level = selected_level(app).to_owned();
+    if chain_subagent_stage(app, &level) {
+        return;
+    }
     app.thinking_picker.open = false;
     let pick = app.thinking_picker.model_pick.take();
+    let staged = pick.as_ref().is_some_and(|p| p.main_level.is_some());
+    let main_level = match &pick {
+        Some(p) => p.main_level.clone().unwrap_or_else(|| level.clone()),
+        None => level.clone(),
+    };
     let target = match &pick {
         Some(pick) => pick.target.clone(),
         None => app.model_picker.current_model.clone(),
@@ -150,21 +207,67 @@ pub fn select(app: &mut App, client: &Arc<Client>, scope: Scope) {
     }
     if !target.is_empty() {
         let path = format!("/models/{}/thinking", escape_json_pointer(&target));
-        ops.extend(config_write::pick_ops(&path, &level, scope));
-        saved["reasoningEffort"] = json!(level);
+        ops.extend(config_write::pick_ops(&path, &main_level, scope));
+        saved["reasoningEffort"] = json!(main_level);
+    }
+    if staged {
+        if let Some(subagent) = pick.as_ref().and_then(|p| p.subagent_alias.as_deref()) {
+            let path = format!("/models/{}/thinking", escape_json_pointer(subagent));
+            ops.extend(config_write::pick_ops(&path, &level, scope));
+            saved["subagentReasoningEffort"] = json!(level);
+        }
     }
     let all_saved = scope == Scope::Saved && pick.as_ref().is_none_or(|p| p.scope == Scope::Saved);
     let (reason, prefix) = match &pick {
-        Some(pick) => (
-            "app-server config update",
-            format!("Failed to apply: model {}, thinking {level} — ", pick.alias),
-        ),
+        Some(pick) => match staged {
+            true => (
+                "app-server config update",
+                format!(
+                    "Failed to apply: model {}, thinking {main_level}, subagents {level} — ",
+                    pick.alias
+                ),
+            ),
+            false => (
+                "app-server config update",
+                format!("Failed to apply: model {}, thinking {level} — ", pick.alias),
+            ),
+        },
         None => (
             "app-server thinking update",
             format!("Failed to apply: thinking {level} — "),
         ),
     };
     commit(app, client, ops, all_saved.then_some(saved), reason, prefix);
+}
+
+/// A staged pick's first Enter parks the main level and opens the subagent
+/// model's own stage instead of committing. Only a pick that names a different
+/// resolvable subagent model chains; everything else commits in one stage.
+fn chain_subagent_stage(app: &mut App, level: &str) -> bool {
+    let Some(pick) = app.thinking_picker.model_pick.as_mut() else {
+        return false;
+    };
+    if pick.main_level.is_some() || app.thinking_picker.subagent_stage {
+        return false;
+    }
+    let Some(subagent) = pick.subagent_alias.clone().filter(|a| *a != pick.target) else {
+        return false;
+    };
+    let Some(model) = app
+        .model_picker
+        .models
+        .iter()
+        .find(|m| m.alias == subagent)
+        .cloned()
+    else {
+        return false;
+    };
+    pick.main_level = Some(level.to_owned());
+    app.thinking_picker.subagent_stage = true;
+    app.thinking_picker.levels = model.thinking_levels;
+    app.thinking_picker.current_level = model.thinking;
+    show(app);
+    true
 }
 
 /// Commit a `/model` pick without a thinking level (its model is unresolved).

@@ -25,6 +25,12 @@ class BuiltinAgentName(StrEnum):
     AUTO_APPROVE = "auto-approve"
     EXPLORE = "explore"
     LEAN = "lean"
+    RESEARCHER = "researcher"
+    PLANNER = "planner"
+    ARCHITECT = "architect"
+    REVIEWER = "reviewer"
+    CODER = "coder"
+    TESTER = "tester"
 
 
 @dataclass(frozen=True)
@@ -131,6 +137,85 @@ EXPLORE = AgentProfile(
     },
 )
 
+# Read-only role subagents: they read the codebase (or the web) and return an
+# answer; only their tools and prompt differ from Explore's. Write-capable
+# roles set the session's destructive tools on, and their calls still pass the
+# session's own approval mode first.
+_READONLY_ROLE_TOOLS: list[str] = ["grep", "read_file", "skill"]
+_WRITE_ROLE_TOOLS: list[str] = ["grep", "read_file", "write_file", "edit", "bash", "skill"]
+
+RESEARCHER = AgentProfile(
+    name=BuiltinAgentName.RESEARCHER,
+    display_name="Researcher",
+    description="Searches the codebase and docs for a question, and reports findings with file references",
+    safety=AgentSafety.SAFE,
+    agent_type=AgentType.SUBAGENT,
+    overrides={
+        "enabled_tools": _READONLY_ROLE_TOOLS,
+        "system_prompt_id": "researcher",
+    },
+)
+
+PLANNER = AgentProfile(
+    name=BuiltinAgentName.PLANNER,
+    display_name="Planner",
+    description="Reads the codebase and returns a step-by-step plan for a task",
+    safety=AgentSafety.SAFE,
+    agent_type=AgentType.SUBAGENT,
+    overrides={
+        "enabled_tools": _READONLY_ROLE_TOOLS,
+        "system_prompt_id": "planner",
+    },
+)
+
+ARCHITECT = AgentProfile(
+    name=BuiltinAgentName.ARCHITECT,
+    display_name="Architect",
+    description="Explains how a design should work, proposes module boundaries and trade-offs",
+    safety=AgentSafety.SAFE,
+    agent_type=AgentType.SUBAGENT,
+    overrides={
+        "enabled_tools": _READONLY_ROLE_TOOLS,
+        "system_prompt_id": "architect",
+    },
+)
+
+REVIEWER = AgentProfile(
+    name=BuiltinAgentName.REVIEWER,
+    display_name="Reviewer",
+    description="Reviews a diff or a file set for bugs, contract breaks, and style drift",
+    safety=AgentSafety.SAFE,
+    agent_type=AgentType.SUBAGENT,
+    overrides={
+        "enabled_tools": _READONLY_ROLE_TOOLS,
+        "system_prompt_id": "reviewer",
+    },
+)
+
+CODER = AgentProfile(
+    name=BuiltinAgentName.CODER,
+    display_name="Coder",
+    description="Implements a given change in the worktree; edits pass the session's approval mode first",
+    safety=AgentSafety.DESTRUCTIVE,
+    agent_type=AgentType.SUBAGENT,
+    overrides={
+        "enabled_tools": _WRITE_ROLE_TOOLS,
+        "system_prompt_id": "coder",
+    },
+)
+
+TESTER = AgentProfile(
+    name=BuiltinAgentName.TESTER,
+    display_name="Tester",
+    description="Writes and runs tests for a change, and reports failures with traces",
+    safety=AgentSafety.DESTRUCTIVE,
+    agent_type=AgentType.SUBAGENT,
+    overrides={
+        "enabled_tools": _WRITE_ROLE_TOOLS,
+        "system_prompt_id": "tester",
+    },
+)
+
 LEAN = AgentProfile(
     name=BuiltinAgentName.LEAN,
     display_name="Lean",
@@ -183,7 +268,26 @@ BUILTIN_AGENTS: dict[str, AgentProfile] = {
     BuiltinAgentName.AUTO_APPROVE: AUTO_APPROVE,
     BuiltinAgentName.EXPLORE: EXPLORE,
     BuiltinAgentName.LEAN: LEAN,
+    BuiltinAgentName.RESEARCHER: RESEARCHER,
+    BuiltinAgentName.PLANNER: PLANNER,
+    BuiltinAgentName.ARCHITECT: ARCHITECT,
+    BuiltinAgentName.REVIEWER: REVIEWER,
+    BuiltinAgentName.CODER: CODER,
+    BuiltinAgentName.TESTER: TESTER,
 }
+
+# The role subagents `/agent` offers, in picker order; every one is an
+# `AgentType.SUBAGENT` builtin, but `explore` keeps its own place as the
+# delegation tool's long-standing default.
+ROLE_SUBAGENTS: tuple[BuiltinAgentName, ...] = (
+    BuiltinAgentName.EXPLORE,
+    BuiltinAgentName.RESEARCHER,
+    BuiltinAgentName.PLANNER,
+    BuiltinAgentName.ARCHITECT,
+    BuiltinAgentName.REVIEWER,
+    BuiltinAgentName.CODER,
+    BuiltinAgentName.TESTER,
+)
 
 # Builtin agents dropped from the product, mapped to the agent a config that still
 # names one as `default_agent` starts on. Plan was read-only: ask runs no tool

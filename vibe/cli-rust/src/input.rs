@@ -15,10 +15,10 @@ use crate::quit_manager::QuitConfirmKey;
 use crate::server::Client;
 use crate::utils::input_edit;
 use crate::{
-    agents, chat_input, clipboard, completion_manager, config, config_write, connector_auth,
-    debug_console, feedback, keymap, log_level_picker, mcp, mcp_oauth, message_queue, model_picker,
-    paste_files, paste_image, paste_path, question_input, rewind, subagents, theme_picker,
-    thinking_picker, turn_summary, voice,
+    agent_picker, agents, chat_input, clipboard, completion_manager, config, config_write,
+    connector_auth, debug_console, feedback, keymap, log_level_picker, mcp, mcp_oauth,
+    message_queue, model_picker, paste_files, paste_image, paste_path, question_input, rewind,
+    subagents, theme_picker, thinking_picker, turn_summary, voice,
 };
 
 fn is_ctrl_c(key: &KeyEvent) -> bool {
@@ -629,6 +629,19 @@ pub fn handle_mcp_oauth_key(app: &mut App, client: &Arc<Client>, key: KeyEvent) 
 /// The `/model` picker owns keys: arrows/jk navigate, Enter saves to config,
 /// `s` keeps the pick for this session only, Esc cancels.
 /// Unlike the theme picker, navigation does not live-preview.
+/// The `/agent` picker owns keys: arrows/jk navigate, Enter commits the
+/// highlighted row, `s` saves both displayed defaults, Esc cancels.
+pub fn handle_agent_key(app: &mut App, client: &Arc<Client>, key: KeyEvent) {
+    match key.code {
+        KeyCode::Esc => agent_picker::cancel(app),
+        KeyCode::Up | KeyCode::Char('k') => agent_picker::navigate(app, false),
+        KeyCode::Down | KeyCode::Char('j') => agent_picker::navigate(app, true),
+        KeyCode::Enter => agent_picker::select(app, client),
+        KeyCode::Char('s') => agent_picker::save(app, client),
+        _ => {}
+    }
+}
+
 pub fn handle_model_key(app: &mut App, client: &Arc<Client>, key: KeyEvent) {
     match key.code {
         KeyCode::Esc => model_picker::cancel(app),

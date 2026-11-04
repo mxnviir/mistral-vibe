@@ -43,12 +43,16 @@ def model_config_write_ops(
     model_alias: str | None,
     reasoning_effort: str | None,
     subagent_model: str | None = None,
+    subagent_reasoning_effort: str | None = None,
 ) -> list[ConfigWriteOpWire]:
     """The writes a model pick makes, from the pick itself.
 
     Thinking is stored under whichever model is active after this write -- the
     one being picked, or the current one when only thinking changes -- so the
-    two travel together and only this function needs to know the paths.
+    two travel together and only this function needs to know the paths. The
+    subagent's level travels the same way, under the subagent model the pick
+    sets; a pick that leaves the subagent model alone (an empty one unpins to
+    the session's own model) is covered by the main model's level.
 
     An empty alias is how this configuration says "follow the default", and
     writing it is the only way to unpin a session, so it is passed through
@@ -79,6 +83,17 @@ def model_config_write_ops(
                 op="set", path=model_thinking_path(target), value=reasoning_effort
             )
         )
+    if subagent_reasoning_effort is not None and subagent_model:
+        subagent_target = subagent_model
+        target = model_after_write(config, model_alias)
+        if subagent_target != target:
+            ops.append(
+                ConfigWriteOpWire(
+                    op="set",
+                    path=model_thinking_path(subagent_target),
+                    value=subagent_reasoning_effort,
+                )
+            )
     return ops
 
 

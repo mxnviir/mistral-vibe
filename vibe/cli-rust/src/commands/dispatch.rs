@@ -34,6 +34,7 @@ pub(super) fn run_command(
         "/voice" => crate::voice_app::open(app),
         "/proxy-setup" => crate::proxy_setup::open(app, client),
         "/theme" => theme_picker::open(app),
+        "/agent" => crate::agent_picker::open(app),
         "/model" => model_picker::open(app),
         "/thinking" => crate::thinking_picker::open(app),
         "/remote-project" => crate::vibe_code_project::open(app, client),

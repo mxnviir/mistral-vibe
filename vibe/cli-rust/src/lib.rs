@@ -1,5 +1,6 @@
 //! vibe-rs internals as a library so integration tests can drive pure logic.
 
+pub mod agent_picker;
 pub mod agent_socket;
 pub mod agents;
 pub mod app;

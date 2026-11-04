@@ -163,7 +163,9 @@ The `task` tool allows the agent to delegate work to subagents:
 
 Create custom subagents by adding `agent_type = "subagent"` to your agent configuration. Vibe comes with a built-in subagent called `explore`, a read-only subagent for codebase exploration and skill loading used internally for delegation.
 
-Subagents run on the session's model by default. Set `subagent_model` in `config.toml` (to an alias defined under `[[models]]`) to run every subagent's children on another model, or define named pairs under `[model_profiles.<name>]` (`main` + `subagent`) and pick one in `/model`: the picker lists each pair as one row, and picking it switches the session's main model and its subagents together. The picker's **Custom main + subagents...** entry stages the two selections by hand when you want a pair you have not named in config.
+Subagents run on the session's model by default. Set `subagent_model` in `config.toml` (to an alias defined under `[[models]]`) to run every subagent's children on another model, or define named pairs under `[model_profiles.<name>]` (`main` + `subagent`) and pick one in `/model`: the picker lists each pair as one row, and picking it switches the session's main model and its subagents together. Each of the two models keeps its own thinking level: a pair or a custom pick asks the main model's level, then the subagent model's, in two stages, and writes both together. The picker's **Custom main + subagents...** entry stages the two selections by hand when you want a pair you have not named in config.
+
+By default a bare subagent spawn (one with no type named) runs a generic child on the session's model and tools. Set `default_subagent` in `config.toml` to a subagent role — `explore`, `researcher`, `planner`, `architect`, `reviewer`, `coder`, `tester`, or one of your own — to make every bare spawn run that role, or pick a role in `/agent`, which lists the primary agents and the subagent roles in separate sections and applies the pair's suggestion for the session.
 
 The interactive prompt shows each known subagent's name, type, live status, and
 latest measured context size. Opening a

@@ -1,5 +1,6 @@
 //! UI components; each submodule owns one region of the screen.
 
+pub mod agent_picker;
 pub mod approval;
 pub mod artifacts_modal;
 pub mod auth_app;
@@ -132,6 +133,7 @@ fn draw_session_screen(app: &mut App, f: &mut Frame, area: ratatui::layout::Rect
         Focus::ConnectorAuth => connector_auth::draw(app, f, area),
         Focus::Rewind => rewind::draw(app, f, area),
         Focus::ThemePicker => theme_picker::draw(app, f, area),
+        Focus::AgentPicker => agent_picker::draw(app, f, area),
         Focus::ModelPicker => model_picker::draw(app, f, area),
         Focus::LogLevelPicker => log_level_picker::draw(app, f, area),
         Focus::ThinkingPicker => thinking_picker::draw(app, f, area),

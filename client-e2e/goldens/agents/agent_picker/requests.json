@@ -1,0 +1,32 @@
+[
+ {
+  "method": "config/write",
+  "params": {
+   "ops": [
+    {
+     "op": "set",
+     "path": "/default_subagent",
+     "targetLayer": "overrides",
+     "value": "explore"
+    }
+   ],
+   "reason": "default subagent pick",
+   "reloadRuntime": false,
+   "sessionId": "00000000-0000-4000-8000-000000000001"
+  }
+ },
+ {
+  "method": "config/reload",
+  "params": {
+   "reloadRuntime": true,
+   "sessionId": "00000000-0000-4000-8000-000000000001"
+  }
+ },
+ {
+  "method": "session/agent/update",
+  "params": {
+   "agentName": "smart-approve",
+   "sessionId": "00000000-0000-4000-8000-000000000001"
+  }
+ }
+]

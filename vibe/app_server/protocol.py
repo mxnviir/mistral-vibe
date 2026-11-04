@@ -1462,6 +1462,9 @@ class ModelConfigWriteParams(ProtocolModel):
     # A whole-mode pick also sets the model the session's subagents run on.
     # None leaves the configured value alone; empty unpins to the default.
     subagent_model: str | None = None
+    # How hard the subagent model thinks, staged after the main model's level
+    # in the same pick. Applied only alongside a subagent model above.
+    subagent_reasoning_effort: str | None = None
     # Otherwise the pick also becomes the user's default, as a picker's does.
     session_only: bool = False
 

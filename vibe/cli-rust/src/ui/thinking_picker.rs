@@ -42,7 +42,7 @@ fn draw_box(app: &mut App, f: &mut Frame, area: Rect) {
     f.buffer_mut().set_string(
         bx + 2,
         by + 1,
-        "Select Thinking Level",
+        crate::thinking_picker::title(app),
         Style::default()
             .fg(theme::primary())
             .bg(theme::background())

@@ -45,6 +45,7 @@ impl Command {
 const COMMANDS: &[Command] = &[
     cmd(&["/help"], "Show help message", true),
     cmd(&["/config"], "Edit config settings", false),
+    cmd(&["/agent"], "Switch the primary agent, or set the subagent role bare spawns run", false),
     cmd(&["/model"], "Select active model", false),
     cmd(&["/thinking"], "Select thinking level", false),
     cmd(&["/reload"], "Reload configuration, agent instructions, and skills from disk", false),

@@ -101,6 +101,7 @@ def project_config_view(
         # is in effect.
         default_model_alias=config.resolve_default_model_alias(),
         default_agent=config.default_agent,
+        default_subagent=config.default_subagent,
         theme=config.theme,
         log_level=config.log_level,
         disable_welcome_banner_animation=config.disable_welcome_banner_animation,

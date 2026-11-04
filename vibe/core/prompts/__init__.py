@@ -26,6 +26,13 @@ class SystemPrompt(Prompt):
     TESTS = auto()
     LEAN = auto()
     MINIMAL = auto()
+    # The /agent role subagents: one bundled prompt each, next to the outline.
+    RESEARCHER = auto()
+    PLANNER = auto()
+    ARCHITECT = auto()
+    REVIEWER = auto()
+    CODER = auto()
+    TESTER = auto()
 
 
 class UtilityPrompt(Prompt):

@@ -79,6 +79,10 @@ pub struct StartupConfig {
     pub images_supported: bool,
     /// Configured default used to choose the startup label from `agents`.
     pub default_agent: String,
+    /// The subagent role bare spawns run (`defaultSubagent`); "" keeps the
+    /// generic child. Additive: unused caches default to it.
+    #[serde(default)]
+    pub default_subagent: String,
     /// The cycleable agents, so Shift+Tab works before the snapshot lands.
     pub agents: Vec<AgentSummary>,
     /// Bounded user-invocable skill metadata for `/` completion before readiness.
@@ -112,6 +116,7 @@ impl Default for StartupConfig {
             active_model_display_name: String::new(),
             images_supported: false,
             default_agent: DEFAULT_AGENT.into(),
+            default_subagent: String::new(),
             agents: builtin_agents(),
             skills: Vec::new(),
             context_window: 0,
@@ -221,6 +226,7 @@ impl StartupConfig {
                 .or(model.supports_images)
                 .unwrap_or(false),
             default_agent: config.default_agent.unwrap_or_else(|| DEFAULT_AGENT.into()),
+            default_subagent: config.default_subagent.unwrap_or_default(),
             agents: runtime.agents.unwrap_or_else(builtin_agents),
             skills: cached_skills(response),
             context_window: runtime.context_window,

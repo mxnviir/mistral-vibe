@@ -88,6 +88,7 @@ pub fn select(app: &mut App, client: &Arc<Client>, scope: Scope) {
                 target: profile.main.clone(),
                 subagent_alias: Some(profile.subagent.clone()),
                 scope,
+                main_level: None,
             };
             app.model_picker.open = false;
             hand_off(app, client, pick);
@@ -119,6 +120,7 @@ fn select_model_row(app: &mut App, client: &Arc<Client>, scope: Scope) {
                 target: main,
                 subagent_alias: Some(alias),
                 scope,
+                main_level: None,
             };
             app.model_picker.open = false;
             app.model_picker.custom_stage = None;
@@ -135,6 +137,7 @@ fn select_model_row(app: &mut App, client: &Arc<Client>, scope: Scope) {
                 target,
                 subagent_alias: None,
                 scope,
+                main_level: None,
             };
             hand_off(app, client, pick);
         }

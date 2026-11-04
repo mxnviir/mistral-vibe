@@ -58,6 +58,9 @@ pub struct ConfigView {
     #[serde(default)]
     pub default_model_alias: String,
     pub default_agent: Option<String>,
+    /// The subagent role bare spawns run; `None` or "" keeps the generic child.
+    #[serde(default)]
+    pub default_subagent: Option<String>,
     pub theme: Option<String>,
     pub log_level: Option<String>,
     #[serde(default)]

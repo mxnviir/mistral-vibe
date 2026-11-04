@@ -1,1 +1,12 @@
-[]
+[
+ {
+  "method": "config/model/write",
+  "params": {
+   "modelAlias": "mistral-vibe-cli",
+   "reasoningEffort": "off",
+   "sessionId": "00000000-0000-4000-8000-000000000001",
+   "subagentModel": "glm-flash",
+   "subagentReasoningEffort": "off"
+  }
+ }
+]

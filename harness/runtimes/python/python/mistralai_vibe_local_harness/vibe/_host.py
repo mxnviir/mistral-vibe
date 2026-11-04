@@ -3519,6 +3519,7 @@ class UnifiedHarnessSessionBackendHost:  # noqa: PLR0904 - implements the app-se
             policy_ceiling=configured.policy_ceiling,
             limits=configured.limits,
             rejected_agent_types=configured.rejected_agent_types,
+            default_subagent=adapter.default_subagent if adapter is not None else None,
         )
         if base is not None and adapter is not None:
             self._subagent_pins[controller] = (base, adapter)

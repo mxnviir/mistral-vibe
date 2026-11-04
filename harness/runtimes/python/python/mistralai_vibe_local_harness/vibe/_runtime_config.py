@@ -370,6 +370,10 @@ class LocalRuntimeAdapterConfig:
     # keeps them on the session's own model. The Host resolves it, as it
     # resolves the session's own route.
     subagent_completion: SubagentCompletionRoute | None = None
+    # The subagent type a bare spawn (no type named) runs; ``None`` keeps the
+    # generic child. The Host admits it only when a binding under the session's
+    # policy exists.
+    default_subagent: str | None = None
     affinity_id: AffinityIdSource | None = None
     # Host attribution attached only to Mistral completion requests because it
     # is a Mistral-specific request field.
@@ -606,6 +610,7 @@ _LOCAL_RUNTIME_ADAPTER_BEHAVIOR_FIELDS = frozenset({
     # The route the session's generic subagent children complete on; like
     # ``active_model`` it is behavior a forked child keeps.
     "subagent_completion",
+    "default_subagent",
     "compaction_model",
     "title_model",
     "title_prompt",

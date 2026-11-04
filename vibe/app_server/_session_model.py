@@ -147,14 +147,27 @@ async def set_session_reasoning_effort_override(
     *,
     reason: str,
 ) -> list[BaseException]:
-    """Scope the active model's level to the session.
+    """Scope the active model's level to the session."""
+    alias = orchestrator.config.get_active_model().alias
+    return await set_session_model_thinking_override(
+        orchestrator, alias, reasoning_effort, reason=reason
+    )
+
+
+async def set_session_model_thinking_override(
+    orchestrator: ConfigOrchestrator[VibeConfigSchema],
+    alias: str,
+    reasoning_effort: str,
+    *,
+    reason: str,
+) -> list[BaseException]:
+    """Scope one model's level to the session.
 
     Through the same translation a ``config/write`` uses: a model that no
     durable layer declares is materialized with its identity fields, except
     one the catalog or GrowthBook layer defines, which keeps a settings-only
     entry.
     """
-    alias = orchestrator.config.get_active_model().alias
     if not model_thinking_is_session_writable(orchestrator, alias):
         return []
     ops = [

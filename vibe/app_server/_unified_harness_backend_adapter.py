@@ -270,6 +270,7 @@ from vibe.app_server._session_model import (
     clear_session_active_model_override,
     model_thinking_is_session_writable,
     set_session_active_model_override,
+    set_session_model_thinking_override,
     set_session_reasoning_effort_override,
     set_session_subagent_model_override,
     with_session_active_model_write,
@@ -7551,6 +7552,7 @@ class UnifiedHarnessBackendAdapter(  # noqa: PLR0904 - implements app-server ses
                 model_alias=params.model_alias,
                 reasoning_effort=params.reasoning_effort,
                 subagent_model=params.subagent_model,
+                subagent_reasoning_effort=params.subagent_reasoning_effort,
             )
         except ValueError as exc:
             raise SessionBackendError(
@@ -7569,6 +7571,22 @@ class UnifiedHarnessBackendAdapter(  # noqa: PLR0904 - implements app-server ses
                     op="set",
                     path=model_thinking_path(written_model),
                     value=params.reasoning_effort,
+                    target_layer=OverridesLayer.NAME,
+                ),
+            ]
+        subagent_model = params.subagent_model or None
+        if (
+            params.subagent_reasoning_effort is not None
+            and subagent_model is not None
+            and subagent_model != written_model
+            and model_thinking_is_session_writable(orchestrator, subagent_model)
+        ):
+            ops = [
+                *ops,
+                ConfigWriteOpWire(
+                    op="set",
+                    path=model_thinking_path(subagent_model),
+                    value=params.subagent_reasoning_effort,
                     target_layer=OverridesLayer.NAME,
                 ),
             ]
@@ -7616,6 +7634,16 @@ class UnifiedHarnessBackendAdapter(  # noqa: PLR0904 - implements app-server ses
             failures = await set_session_reasoning_effort_override(
                 orchestrator, params.reasoning_effort, reason="session thinking pick"
             )
+        if not failures and params.subagent_reasoning_effort is not None:
+            subagent_model = params.subagent_model or None
+            active = orchestrator.config.get_active_model().alias
+            if subagent_model is not None and subagent_model != active:
+                failures = await set_session_model_thinking_override(
+                    orchestrator,
+                    subagent_model,
+                    params.subagent_reasoning_effort,
+                    reason="session thinking pick",
+                )
         await self._apply_written_config()
         if failures:
             return SessionBackendResult(

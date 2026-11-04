@@ -94,7 +94,7 @@ from vibe.app_server.protocol import (
 from vibe.app_server.run_export import HeadlessUsageError, RunOutcome
 from vibe.app_server.transport import JsonRpcTransport, memory_transport_pair
 from vibe.core.agents.manager import AgentManager
-from vibe.core.agents.models import AgentProfile, BuiltinAgentName
+from vibe.core.agents.models import AgentProfile, AgentType, BuiltinAgentName
 from vibe.core.agents.registry import apply_profile_overrides
 from vibe.core.config import (
     MCPHttp,
@@ -405,6 +405,21 @@ def _named_provider(name: str) -> Callable[[VibeConfigSchema], ProviderConfig]:
         return provider
 
     return select
+
+
+def _default_subagent(config: VibeConfigSchema, agents: AgentManager) -> str | None:
+    """The configured default subagent, when this session's manager offers it.
+
+    Resolved here rather than admitted in the controller, so a name that
+    matches no agent (a typo, or one the org config excludes) keeps the
+    generic child instead of failing every bare spawn.
+    """
+    if not config.default_subagent:
+        return None
+    target = agents.available_agents.get(config.default_subagent)
+    if target is None or target.agent_type != AgentType.SUBAGENT:
+        return None
+    return target.name
 
 
 def _output_room(window: int, threshold: int) -> int | None:
@@ -1798,6 +1813,7 @@ class HarnessProcess:
                         reasoning=model_facts.agent_reasoning,
                     ),
                     active_agent=active_profile.name,
+                    default_subagent=_default_subagent(config, agent_view),
                     compaction_model=LocalModelRoute(
                         model=compaction_model.name,
                         temperature=compaction_model.temperature,

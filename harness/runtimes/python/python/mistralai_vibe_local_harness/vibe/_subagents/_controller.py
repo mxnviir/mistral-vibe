@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 from collections import defaultdict
 from collections.abc import Callable, Iterable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import hashlib
 import logging
 import time
@@ -162,11 +162,16 @@ class SubagentController:
         policy_ceiling: ResolvedSubagentPolicyCeiling,
         limits: SubagentLimits,
         rejected_agent_types: Mapping[str, str] | None = None,
+        default_subagent: str | None = None,
     ) -> None:
         self._runtime = runtime
         self._child_host = child_host
         self._bindings = dict(bindings)
         self._rejected_agent_types = dict(rejected_agent_types or {})
+        # A bare spawn (no type named) runs this agent type when a binding
+        # admits it, else the generic child. The session's `default_subagent`
+        # setting reaches here through the adapter config.
+        self._default_subagent = default_subagent or None
         self._policy_ceiling = policy_ceiling
         self._limits = limits
         self._graph_lock = asyncio.Lock()
@@ -191,6 +196,7 @@ class SubagentController:
         policy_ceiling: ResolvedSubagentPolicyCeiling,
         limits: SubagentLimits | None = None,
         rejected_agent_types: Mapping[str, str] | None = None,
+        default_subagent: str | None = None,
     ) -> SubagentController:
         def initialize_subagents(state: RuntimeStateV3) -> RuntimeStateV3:
             if isinstance(state.identity, SubagentSessionIdentity):
@@ -245,6 +251,7 @@ class SubagentController:
             policy_ceiling=policy_ceiling,
             limits=limits or SubagentLimits(),
             rejected_agent_types=rejected_agent_types,
+            default_subagent=default_subagent,
         )
         # A recovered notification can immediately ask the model for more child
         # work, so install the controller before replaying any queued delivery.
@@ -846,6 +853,21 @@ class SubagentController:
                         )
             return {"agents": agents}
 
+    def _resolve_default_subagent(self, request: SpawnInput) -> SpawnInput:
+        """A bare spawn runs the session's default subagent when one admits it.
+
+        The generic binding at ``agent_type=None`` stays the fallback: a default
+        that was rejected with the config (or names no binding) keeps the old
+        inherit-everything child rather than failing the spawn.
+        """
+        if request.agent_type is not None or not self._default_subagent:
+            return request
+        default = self._default_subagent
+        binding = self._bindings.get(default)
+        if binding is None or default in self._rejected_agent_types:
+            return request
+        return replace(request, agent_type=default)
+
     async def _spawn(
         self,
         action: RustRuntimeBuiltinToolCallAction,
@@ -854,6 +876,7 @@ class SubagentController:
     ) -> tuple[dict[str, JsonValue], dict[str, JsonValue]]:
         async with self._name_locks[request.agent_name], self._turn_admission_lock:
             if receipt is None:
+                request = self._resolve_default_subagent(request)
                 async with self._graph_lock:
                     binding = self._bindings.get(request.agent_type)
                     if binding is None:

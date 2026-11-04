@@ -100,6 +100,9 @@ class ConfigView(ProtocolModel):
     awaiting_experiment_model: bool = False
     default_model_alias: str
     default_agent: str = "accept-edits"
+    # The subagent role bare spawns run; "" keeps the generic child. Defaulted
+    # so a client against an older server still renders the picker (ADR 0014).
+    default_subagent: str = ""
     theme: str
     log_level: str | None
     disable_welcome_banner_animation: bool

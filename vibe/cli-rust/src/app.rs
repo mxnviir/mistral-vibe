@@ -619,6 +619,9 @@ pub struct ThinkingPicker {
     pub levels: Vec<String>,
     /// A `/model` pick held until its chained thinking level is chosen or skipped.
     pub model_pick: Option<crate::thinking_picker::ModelPick>,
+    /// Whether the picker is on a staged pick's second stage: the subagent
+    /// model's own level, asked after the main model's.
+    pub subagent_stage: bool,
 }
 
 /// `/resume` picker state.
@@ -813,6 +816,7 @@ pub struct App {
     pub config_screen: ConfigScreen,
     pub release_notes: crate::release_notes::State,
     pub theme_picker: ThemePicker,
+    pub agent_picker: crate::agent_picker::AgentPicker,
     pub model_picker: ModelPicker,
     pub log_level_picker: LogLevelPicker,
     pub thinking_picker: ThinkingPicker,

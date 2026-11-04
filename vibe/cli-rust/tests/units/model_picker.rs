@@ -48,6 +48,7 @@ fn pick_opens_thinking_on_the_picked_model() {
             target: "large".into(),
             subagent_alias: None,
             scope: Scope::Session,
+            main_level: None,
         })
     );
 }
@@ -191,6 +192,7 @@ fn a_profile_pick_holds_main_and_subagent_for_one_write() {
             target: "large".into(),
             subagent_alias: Some("medium".into()),
             scope: Scope::Saved,
+            main_level: None,
         })
     );
     assert_eq!(app.thinking_picker.levels, vec!["off", "high", "max"]);
@@ -231,6 +233,7 @@ fn the_custom_flow_stages_main_then_subagent() {
             target: "large".into(),
             subagent_alias: Some(String::new()),
             scope: Scope::Saved,
+            main_level: None,
         })
     );
 }
@@ -247,4 +250,103 @@ fn esc_closes_the_staged_flow_without_writing() {
     assert_eq!(app.model_picker.custom_stage, None);
     assert!(!app.thinking_picker.open);
     assert_eq!(app.thinking_picker.model_pick, None);
+}
+
+#[test]
+fn the_first_thinking_stage_parks_the_level_and_chains_the_subagents() {
+    let mut app = App::default();
+    vibe_rs::event_handler::apply_runtime_value(&mut app, &profile_runtime());
+    model_picker::open(&mut app);
+    app.model_picker.list.highlight(4);
+    select(&mut app, Scope::Saved);
+    // Stage 1: the main model's levels.
+    assert_eq!(app.thinking_picker.levels, vec!["off", "high", "max"]);
+    app.thinking_picker.list.highlight(2);
+    thinking_picker::select(&mut app, &stub(), Scope::Saved);
+    // Stage 2: the subagent model's own levels, nothing written yet.
+    assert!(app.thinking_picker.open);
+    assert!(app.thinking_picker.subagent_stage);
+    assert_eq!(app.thinking_picker.levels, vec!["off", "low"]);
+    assert_eq!(thinking_picker::selected_level(&app), "off");
+    assert_eq!(
+        vibe_rs::thinking_picker::title(&app),
+        "Select Subagent Thinking"
+    );
+    assert_eq!(
+        app.thinking_picker
+            .model_pick
+            .as_ref()
+            .and_then(|p| p.main_level.as_deref()),
+        Some("max")
+    );
+}
+
+#[test]
+fn esc_from_the_subagents_stage_returns_to_the_main_models() {
+    let mut app = App::default();
+    vibe_rs::event_handler::apply_runtime_value(&mut app, &profile_runtime());
+    model_picker::open(&mut app);
+    app.model_picker.list.highlight(4);
+    select(&mut app, Scope::Saved);
+    app.thinking_picker.list.highlight(2);
+    thinking_picker::select(&mut app, &stub(), Scope::Saved);
+    thinking_picker::cancel(&mut app);
+    assert!(app.thinking_picker.open);
+    assert!(!app.thinking_picker.subagent_stage);
+    assert_eq!(app.thinking_picker.levels, vec!["off", "high", "max"]);
+    assert_eq!(thinking_picker::selected_level(&app), "max");
+    assert_eq!(
+        (
+            thinking_picker::selected_level(&app),
+            thinking_picker::title(&app)
+        ),
+        ("max", "Select Thinking Level")
+    );
+}
+
+#[test]
+fn the_second_stage_commits_and_sets_both_levels() {
+    let mut app = App::default();
+    vibe_rs::event_handler::apply_runtime_value(&mut app, &profile_runtime());
+    model_picker::open(&mut app);
+    app.model_picker.list.highlight(4);
+    select(&mut app, Scope::Saved);
+    app.thinking_picker.list.highlight(1);
+    thinking_picker::select(&mut app, &stub(), Scope::Saved);
+    app.thinking_picker.list.highlight(1);
+    thinking_picker::select(&mut app, &stub(), Scope::Saved);
+    assert!(!app.thinking_picker.open);
+    assert!(app.thinking_picker.model_pick.is_none());
+}
+
+#[test]
+fn a_single_target_pick_skips_the_subagent_stage() {
+    // A custom pick whose two stages land on the same model: one thinking
+    // stage covers both.
+    let mut app = App::default();
+    vibe_rs::event_handler::apply_runtime_value(&mut app, &profile_runtime());
+    model_picker::open(&mut app);
+    // Custom flow: main "large", then the same model as the subagents'.
+    app.model_picker.list.highlight(custom_row(&app));
+    select(&mut app, Scope::Saved);
+    app.model_picker.list.highlight(2);
+    select(&mut app, Scope::Saved);
+    app.model_picker.list.highlight(2);
+    select(&mut app, Scope::Saved);
+    assert!(app.thinking_picker.open);
+    assert!(!app.thinking_picker.subagent_stage);
+    app.thinking_picker.list.highlight(2);
+    thinking_picker::select(&mut app, &stub(), Scope::Saved);
+    assert!(!app.thinking_picker.open);
+    assert!(app.thinking_picker.model_pick.is_none());
+}
+
+#[test]
+fn a_plain_model_pick_commits_in_one_stage() {
+    let mut app = app_on(2);
+    select(&mut app, Scope::Session);
+    app.thinking_picker.list.highlight(1);
+    thinking_picker::select(&mut app, &stub(), Scope::Session);
+    assert!(!app.thinking_picker.open);
+    assert!(app.thinking_picker.model_pick.is_none());
 }

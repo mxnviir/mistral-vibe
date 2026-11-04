@@ -193,6 +193,7 @@ fn handle_input_event(
                 | Focus::ConnectorAuth
                 | Focus::Rewind
                 | Focus::ThemePicker
+                | Focus::AgentPicker
                 | Focus::ModelPicker
                 | Focus::LogLevelPicker
                 | Focus::ThinkingPicker
@@ -270,6 +271,7 @@ fn dispatch_key(
         Focus::ConnectorAuth => input::handle_connector_auth_key(app, client, key),
         Focus::Rewind => crate::rewind::handle_key(app, client, key),
         Focus::ThemePicker => input::handle_theme_key(app, client, key),
+        Focus::AgentPicker => input::handle_agent_key(app, client, key),
         Focus::ModelPicker => input::handle_model_key(app, client, key),
         Focus::LogLevelPicker => input::handle_log_level_key(app, client, key),
         Focus::ThinkingPicker => input::handle_thinking_key(app, client, key),

@@ -8,9 +8,9 @@ use tokio::sync::mpsc;
 use crate::app::App;
 use crate::server::Client;
 use crate::{
-    agents, approval, connector_auth, debug_console, feedback, log_level_picker, mcp, mcp_oauth,
-    message_queue, model_picker, older_history, paste_image, question_app, resume_picker, rewind,
-    subagents, theme_picker, thinking_picker, turn_summary,
+    agent_picker, agents, approval, connector_auth, debug_console, feedback, log_level_picker, mcp,
+    mcp_oauth, message_queue, model_picker, older_history, paste_image, question_app,
+    resume_picker, rewind, subagents, theme_picker, thinking_picker, turn_summary,
 };
 
 /// Room for every answer in flight at once; senders await rather than drop.
@@ -33,6 +33,7 @@ macro_rules! ui_events {
 
 ui_events! {
     Theme(theme_picker::Event),
+    Agent(agent_picker::Event),
     Model(model_picker::Event),
     LogLevel(log_level_picker::Event),
     Thinking(thinking_picker::Event),
@@ -70,6 +71,7 @@ pub fn apply(app: &mut App, client: &Arc<Client>, event: UiEvent) {
     }
     match event {
         UiEvent::Theme(event) => theme_picker::apply_event(app, event),
+        UiEvent::Agent(event) => agent_picker::apply_event(app, event),
         UiEvent::Model(event) => model_picker::apply_event(app, event),
         UiEvent::LogLevel(event) => log_level_picker::apply_event(app, event),
         UiEvent::Thinking(event) => thinking_picker::apply_event(app, event),

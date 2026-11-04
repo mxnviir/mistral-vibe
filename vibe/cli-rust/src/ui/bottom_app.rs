@@ -19,6 +19,7 @@ pub enum Kind {
     Voice,
     ProxySetup,
     Theme,
+    Agent,
     Model,
     LogLevel,
     Thinking,
